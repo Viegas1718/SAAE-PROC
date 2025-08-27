@@ -14,6 +14,7 @@ import LoginPage from './components/pages/auth/LoginPage';
 import RegisterPage from './components/pages/auth/RegisterPage';
 import ForgotPasswordPage from './components/pages/auth/ForgotPasswordPage';
 import AdminPage from './components/pages/admin/AdminPage';
+import PublicProcessViewModal from './components/modals/PublicProcessViewModal';
 import { mockProcesses, mockUsers, mockSignatureDocs, mockDepartments, mockProcessTypes } from './constants';
 import type { Process, SignatureDocument, ProcessDocument, ProcessMovement, User, ProcessType, Signatory } from './types';
 import { ProcessStatus, DocumentType, RequestStatus, NotificationStatus, ProcessAction, SignatoryStatus, SignatoryType } from './types';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
   const [isSendNotificationModalOpen, setIsSendNotificationModalOpen] = useState(false);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [publicProcessResult, setPublicProcessResult] = useState<Process | 'not_found' | null>(null);
   const [currentDepartmentId, setCurrentDepartmentId] = useState<number | null>(currentUser?.currentDepartmentId ?? null);
   
   useEffect(() => {
@@ -370,17 +372,46 @@ const App: React.FC = () => {
       }));
   };
 
+  const handlePublicProcessSearch = (cpfCnpj: string) => {
+    const foundProcess = processes.find(p => p.requesterCPF.trim().replace(/[.-]/g, '') === cpfCnpj.trim().replace(/[.-]/g, ''));
+    if (foundProcess) {
+        setPublicProcessResult(foundProcess);
+    } else {
+        setPublicProcessResult('not_found');
+    }
+  };
+
+  const handleClosePublicProcessModal = () => {
+    setPublicProcessResult(null);
+  };
+
+
   // --- Render Logic ---
 
   if (!isAuthenticated || !currentUser) {
+    let authComponent;
     switch (authView) {
       case 'register':
-        return <RegisterPage onNavigate={setAuthView} />;
+        authComponent = <RegisterPage onNavigate={setAuthView} />;
+        break;
       case 'forgot-password':
-        return <ForgotPasswordPage onNavigate={setAuthView} />;
+        authComponent = <ForgotPasswordPage onNavigate={setAuthView} />;
+        break;
       default:
-        return <LoginPage onLogin={handleLogin} onNavigate={setAuthView} />;
+        authComponent = <LoginPage onLogin={handleLogin} onNavigate={setAuthView} onPublicSearch={handlePublicProcessSearch} />;
+        break;
     }
+    return (
+        <>
+            {authComponent}
+            {publicProcessResult && (
+                <PublicProcessViewModal
+                    result={publicProcessResult}
+                    onClose={handleClosePublicProcessModal}
+                />
+            )}
+        </>
+    );
   }
 
   const departmentProcesses = processes.filter(p => p.department.id === currentDepartmentId);
